@@ -1,7 +1,13 @@
-FROM winamd64/python:3.7-windowsservercore-ltsc2016
+FROM gcr.io/google-appengine/python
 
-COPY /server/ /app
-COPY /client/build/ /app
+# Create a virtualenv for dependencies. This isolates these packages from
+# system-level packages.
+# Use -p python3 or -p python3.7 to select python version. Default is version 2.
+RUN virtualenv /env -p python3.7
+
+
+COPY /server /app
+COPY /client/build /app
 COPY .flaskenv /app
 COPY requirements.txt /app
 
