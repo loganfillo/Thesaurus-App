@@ -1,0 +1,8 @@
+runtime: custom
+env: flex
+
+handlers:
+  - url: /
+    static_dir: client/build
+  - url: /.*
+    script: auto
