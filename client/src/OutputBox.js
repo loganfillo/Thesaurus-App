@@ -3,9 +3,10 @@ import { createUseStyles } from 'react-jss'
 
 const useStyles = createUseStyles({
   outputBox: {
+    backgroundColor: 'lightgrey',
     color: 'black',
     width: '50vw',
-    height: '15vh',
+    height: '20vh',
     fontSize: '4vh',
     resize: 'none',
     border: [2, 'solid', 'darkslategrey'],
@@ -20,7 +21,7 @@ const useStyles = createUseStyles({
 const OutputBox = (props) => {
 
   const classes = useStyles(props);
-  let placeholder = "It will show up here";
+  const placeholder = "It Will Show Up Here";
 
   return (
     <div className={classes.outputBoxContainer}>

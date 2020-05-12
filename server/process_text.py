@@ -3,6 +3,7 @@ import random
 import enum
 import math
 import string
+import time
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -110,19 +111,16 @@ class InputTextProcessor:
     @returns: A synonym of the word, with correct tense and plurality 
     """
     def get_synonym(self, word):
+        start = time.time()
         lemma = word.lemma
         url = os.environ['THESAURUS_API_URL']  + lemma
         params = {'key':  os.environ['THESAURUS_API_KEY']}
         print(url)
+        syn = word.text
         req = requests.get(url, params=params)
-        if req.status_code != 200:
-            return word.text
-        else:
-            syns = []
+        if req.status_code == 200:
             entries = req.json()
-            if not isinstance(entries[0], dict): # Different format, should mean no synonyms
-                return word.text
-            else:
+            if isinstance(entries[0], dict): # Different formats should mean no synonyms
                 if word.pos == VERB:
                     pos = 'verb'
                 elif word.pos == NOUN:
@@ -132,12 +130,13 @@ class InputTextProcessor:
                 elif word.pos == ADV:
                     pos = 'adverb'
                 entries = [entry for entry in entries if pos in entry['fl'] and entry['hwi']['hw'] == lemma]
-                if len(entries) <= 0: 
-                    return word.text
-                else:
+                if len(entries) > 0: 
                     entry = entries[0] # Assuming there is only one entry with identical headword to lemma
                     all_syns = [syn for syns in entry['meta']['syns'] for syn in syns]
-                    return self.pick_close_synonym(word, all_syns)  
+                    syn =  self.pick_close_synonym(word, all_syns)
+        end = time.time()
+        print("Time for :" , lemma, end-start)  
+        return syn
 
 
     """

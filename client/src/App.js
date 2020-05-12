@@ -11,8 +11,16 @@ const useStyles = createUseStyles({
     textAlign: 'center'
   },
   appHeader: {
+    fontSize: '2vh',
+    backgroundColor: 'orangered',
+    color: 'white',
+    padding: '1vh'
+  },
+  appTitle: {
+  },
+  appBody: {
     minHeight: '100vh',    
-    backgroundColor: '#6495ED',
+    backgroundColor: 'lightblue',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -26,7 +34,8 @@ const App = (props) => {
   const classes = useStyles(props);
 
   const [inputText, setInputText] = useState("");
-  const [outputText, setOutputText] = useState("")
+  const [outputText, setOutputText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputTextChange = (event) => {
     setInputText(event.target.value);
@@ -40,21 +49,30 @@ const App = (props) => {
         inputText: inputText
       }
     }
+    setIsLoading(true);
     axios(config)
       .then(res => {
+        setIsLoading(false);
         setOutputText(res.data.outputText);
       })
       .catch(err => {
+        setIsLoading(false);
         console.log(err);
+        alert(err)
       });
   }
 
   return (
     <div className={classes.app}>
       <header className={classes.appHeader}>
+        <h1 className={classes.appTitle}>
+          Thesaurus App
+        </h1>
+      </header>
+      <header className={classes.appBody}>
         <InputBox onChange={handleInputTextChange}></InputBox>
-        <Button onClick={handleButtonClick}></Button>
-        <OutputBox text={outputText}></OutputBox>
+        <Button isLoading={isLoading} onClick={handleButtonClick}></Button>
+        <OutputBox isLoading={isLoading} text={outputText}></OutputBox>
       </header>
     </div>
   );

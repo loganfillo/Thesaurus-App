@@ -10,6 +10,7 @@
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-jss": "^10.1.1",
+    "react-loading": "^2.0.3",
     "react-scripts": "3.4.1",
     "styled-components": "^5.1.0"
   },
@@ -34,5 +35,5 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:5000/"
+  "proxy": "http://0.0.0.0:8080/"
 }

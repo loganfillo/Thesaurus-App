@@ -5,7 +5,7 @@ const useStyles = createUseStyles({
   inputBox: {
     color: 'black',
     width: '50vw',
-    height: '15vh',
+    height: '20vh',
     fontSize: '4vh',
     resize: 'none',
     border: [2, 'solid', 'darkslategrey'],
