@@ -11,7 +11,8 @@ import numpy as np
 import spacy
 from spacy.symbols import VERB, NOUN, ADJ, ADV
 import requests
-from pattern.en import conjugate, pluralize, singularize, PAST, PRESENT, PARTICIPLE
+from pattern.en import conjugate, pluralize, singularize, superlative, comparative
+from pattern.en import PAST, PRESENT, PARTICIPLE
 
 
 class InputTextProcessor:
@@ -25,7 +26,8 @@ class InputTextProcessor:
     Loads the spaCy English NLP model
     """
     def __init__(self):
-        self.nlp = spacy.load("en_core_web_sm")
+        self.nlp = spacy.load("en_core_web_md")
+        print("spaCY model loaded")
 
 
     """
@@ -41,7 +43,7 @@ class InputTextProcessor:
             doc = self.retokenize_apostrophes(self.nlp(input_text))
             output_sents = []
             for sent in doc.sents:            
-                words = [Word(self.nlp, token, sent) for token in sent]
+                words = [Word(self.nlp, token, sent, i) for i, token in enumerate(sent)]
                 new_words = [self.get_synonym(word) if self.has_synonym(word) 
                             else word.text for word in words]
                 output_sents.append(self.form_new_sentence(new_words))
@@ -132,31 +134,51 @@ class InputTextProcessor:
                 entries = [entry for entry in entries if pos in entry['fl'] and entry['hwi']['hw'] == lemma]
                 if len(entries) > 0: 
                     entry = entries[0] # Assuming there is only one entry with identical headword to lemma
-                    all_syns = [syn for syns in entry['meta']['syns'] for syn in syns]
-                    syn =  self.pick_close_synonym(word, all_syns)
+                    syn_lists = entry['meta']['syns']
+                    syns = self.pick_synonym_list_from_context(word, syn_lists)
+                    syn =  self.match_morphology(word, self.pick_synonym(word, syns))
         end = time.time()
         print("Time for :" , lemma, end-start)  
         return syn
 
 
     """
-    Picks a close synonym to the given word from the list of synonyms
+    Picks the best list of synonyms for the given word alongside it's context
+
+    Picks the synonym list which has highest average similarity when the original
+    word context and the context with a synonym from that list substituted in for 
+    the word are compared.
+
+    @param word: The given word
+    @param syn_lists: List of list of synonyms, where each sublist refers
+                     to a certain usage of the given word
+    @returns: A sub list of syn_lists
+    """
+    def pick_synonym_list_from_context(self, word, syn_lists):
+        max_avg_sim = 0
+        chosen_syns = syn_lists[0]
+        for syns in syn_lists:
+            sims = []
+            for syn in syns:
+                syn_with_morph = self.match_morphology(word, syn)
+                new_sent = self.nlp(word.context.text.replace(word.text, syn_with_morph))[:]
+                sims.append(word.context.similarity(new_sent))
+            avg_sim = sum(sims)/len(sims)
+            if  avg_sim > max_avg_sim:
+                max_avg_sim = avg_sim
+                chosen_syns = syns
+        print(chosen_syns)
+        return chosen_syns
+
+
+    """
+    Picks a synonym to the given word from the list of synonyms
 
     @param word: The given word
     @param syns: The list of synonyms to the word
     """
-    def pick_close_synonym(self, word, syns):
-        orig_sent = word.sent
-        syns_with_sim = []
-        for syn in syns:
-            syn_with_morph = self.match_morphology(word, syn)
-            new_sent = self.nlp(orig_sent.text.replace(word.text, syn_with_morph))[:]       
-            sim = orig_sent.similarity(new_sent)
-            syn_with_sim = {'sim': sim, 'syn': syn_with_morph}
-            syns_with_sim.append(syn_with_sim)
-        np_sims = np.array([s['sim'] for s in syns_with_sim])
-        thresh= np.percentile(np_sims, 75)
-        rand_syn = random.choice([s['syn'] for s in syns_with_sim if s['sim'] >= thresh])
+    def pick_synonym(self, word, syns):
+        rand_syn = random.choice(syns)
         return rand_syn
 
 
@@ -177,6 +199,10 @@ class InputTextProcessor:
             syn = pluralize(syn)
         if word.morph.is_singular is not None and word.pos == NOUN:
             syn = singularize(syn)
+        if word.morph.is_superlative and (word.pos == ADV or word.pos == ADJ):
+            syn = superlative(syn)
+        if word.morph.is_comparative and (word.pos == ADV or word.pos == ADJ):
+            syn = comparative(syn)
         return syn
             
 
@@ -193,9 +219,10 @@ class Word:
     @param token: The word token
     @param sent: The sentence the word is a part of
     """
-    def __init__(self, nlp, token, sent):
+    def __init__(self, nlp, token, sent, index):
         self._nlp = nlp
         self.sent = sent
+        self.context = self.get_n_length_context(sent, index, n=4)
         self.token = token
         self.lemma = token.lemma_
         self.text = token.text
@@ -203,6 +230,22 @@ class Word:
         self.is_alpha = token.is_alpha
         self.is_stop = token.is_stop
         self.morph = self.get_morphology(token)
+
+
+    """
+    Returns the context of the word including the rightmost and leftmost 
+    n tokens where possible surrounding the word in it's sentance
+
+    @param n: The number of left/right tokens to include in the context
+    @param sent: The sentence the word is a part of
+    @param index: The index of the sentace the word is found
+    @returns: The context of the word
+    """
+    def get_n_length_context(self, sent, index, n=2):
+        start = index-n if index-n >=0 else 0
+        end = index+n+1 if index+n+1 <= len(sent) else len(sent)
+        context = [t.text for t in sent[start:end]]
+        return self._nlp(' '.join(context))
 
 
     """
@@ -230,10 +273,14 @@ class Word:
             if 'Person_three' in morph_dict.keys():
                 morph.is_third_person = True
             if 'Number_plur' in morph_dict.keys():
-                morph.is_plural= True
+                morph.is_plural = True
             if 'Number_sing' in morph_dict.keys():
-                morph.is_singular= True
-            print(token.text, spacy.explain(token.tag_), morph_dict)
+                morph.is_singular = True
+            if 'Degree_sup' in morph_dict.keys():
+                morph.is_superlative =  True
+            if 'Degree_comp' in morph_dict.keys():
+                morph.is_comparative = True
+            print(token.text, token.lemma_ , spacy.explain(token.tag_), morph_dict)
         return morph
 
 
@@ -246,6 +293,8 @@ class Morphology:
         self.is_singular = None
         self.is_plural = None
         self.is_third_person = None
+        self.is_superlative = None
+        self.is_comparative = None
         self.tense = None
         
 

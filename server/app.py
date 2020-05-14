@@ -32,7 +32,7 @@ def process_text_endpoint():
         input_text = request.get_json()['inputText']
         output_text = processer.process(input_text)
         end = time.time()
-        print("Total time for request: ", end-start)
+        print("Total time for request: ", end-start )
         return jsonify({"outputText" : output_text})
     else:
         abort(500)
