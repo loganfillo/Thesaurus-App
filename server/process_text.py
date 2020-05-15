@@ -13,6 +13,7 @@ from spacy.symbols import VERB, NOUN, ADJ, ADV
 import requests
 from pattern.en import conjugate, pluralize, singularize, superlative, comparative
 from pattern.en import PAST, PRESENT, PARTICIPLE
+from pattern.en import wordnet as wn
 
 
 class InputTextProcessor:
@@ -26,7 +27,7 @@ class InputTextProcessor:
     Loads the spaCy English NLP model
     """
     def __init__(self):
-        self.nlp = spacy.load("en_core_web_md")
+        self.nlp = spacy.load("en_core_web_sm")
         print("spaCY model loaded")
 
 
@@ -90,6 +91,7 @@ class InputTextProcessor:
                 elif word in '$@':
                     words[i:i+2] = [''.join(words[i] + words[i+1])] 
         return ' '.join(words)
+
 
     """
     Returns True if the given word has a meaningful synonym
@@ -203,6 +205,8 @@ class InputTextProcessor:
             syn = superlative(syn)
         if word.morph.is_comparative and (word.pos == ADV or word.pos == ADJ):
             syn = comparative(syn)
+        if word.shape[0] == 'X':
+            syn = syn.capitalize()
         return syn
             
 
@@ -227,6 +231,7 @@ class Word:
         self.lemma = token.lemma_
         self.text = token.text
         self.pos = token.pos
+        self.shape = token.shape_
         self.is_alpha = token.is_alpha
         self.is_stop = token.is_stop
         self.morph = self.get_morphology(token)
